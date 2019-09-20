@@ -58,6 +58,7 @@ func (worker *Worker) Attack(req int, res *int) error {
       displayStats(worker.WorkerAttackers)
     }
   }()
+  fmt.Println("blocked on doneChan")
 
   // block Attack() until client has called Terminate()
   <-worker.doneChan

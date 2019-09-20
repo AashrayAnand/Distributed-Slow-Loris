@@ -6,7 +6,7 @@ import (
   "Distributed-Slow-Loris/shared"
   "fmt"
   "os"
-  "signal"
+  "os/signal"
 )
 
 const (
@@ -123,12 +123,15 @@ func main() {
       req := 0
       res := 0
       // terminate slow loris attacks
-      for err := conn.Call(TERM, req, &res); err != nil {
+      for {
+        if err := conn.Call(TERM, req, &res); err == nil {
+          break
+        }
         fmt.Println("error terminating connection, trying again")
       }
     }
     // unblock main after terminating slow loris attacks
     doneChan<-1
-  }
+  }()
   <-doneChan
 }
