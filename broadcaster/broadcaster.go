@@ -43,7 +43,7 @@ func main() {
     return
   }
 
-  broadcaster := &BroadCaster{clients: make([]*rpc.Client, 1), workers: make([]string, 1)}
+  broadcaster := &BroadCaster{clients: make([]*rpc.Client, 0), workers: make([]string, 0)}
 
   // add single EC2 to list of workers, planning for  eventually managing multiple workers
   broadcaster.workers = append(broadcaster.workers, EC2)
@@ -56,6 +56,7 @@ func main() {
       continue
     }
     // add RPC client for host to list of clients
+    fmt.Println("RPC client created for address:", address)
     broadcaster.clients = append(broadcaster.clients, conn)
   }
 
@@ -80,20 +81,20 @@ func main() {
   fmt.Println(workerState, workerHeaders, setStateRes, setHeadersRes)
 
   // use RPC to set important headers/state for all workers, and execute attacks
-  /*for _, conn := range broadcaster.clients {
-    if err := conn.Call(SETHEADERS, workerHeaders, &setHeadersRes); err != nil {
-      fmt.Println("Error setting headers for worker")
-    } else {
-      fmt.Println("SET HEADERS")
-    }
-    if err := conn.Call(SETSTATE, workerState, &setStateRes); err != nil {
-      fmt.Println("Error setting headers for worker")
-    } else {
-      fmt.Println("SET STATE")
-    }
-  }*/
-  fmt.Println("lets see if its there", broadcaster.clients[0] == nil)
-
+  for _, conn := range broadcaster.clients {
+    go func() {
+      if err := conn.Call(SETHEADERS, workerHeaders, &setHeadersRes); err != nil {
+        fmt.Println("Error setting headers for worker")
+      } else {
+        fmt.Println("SET HEADERS")
+      }
+      if err := conn.Call(SETSTATE, workerState, &setStateRes); err != nil {
+        fmt.Println("Error setting headers for worker")
+      } else {
+        fmt.Println("SET STATE")
+      }
+    }()
+  }
   // using dummy loop to keep broadcaster from termianting (HACKY)
   for {
   }
