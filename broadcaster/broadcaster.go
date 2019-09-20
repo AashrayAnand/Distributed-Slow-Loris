@@ -125,6 +125,7 @@ func main() {
       // terminate slow loris attacks
       for {
         if err := conn.Call(TERM, req, &res); err == nil {
+          fmt.Println("terminating connection")
           break
         }
         fmt.Println("error terminating connection, trying again")

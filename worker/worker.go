@@ -22,6 +22,7 @@ type Worker struct {
       WorkerState     *shared.State
       WorkerAttackers []*shared.Attacker
       doneChan        chan int
+      exitChan        chan int
 }
 
 // set headers for worker as specified by broadcaster, always return nil error
@@ -46,22 +47,40 @@ func (worker *Worker) Attack(req int, res *int) error {
 
   // dispatch goroutines to initiate attacks with each attacker in swarm
   for _, attacker := range worker.WorkerAttackers {
-    go loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
+    go func() {
+      for {
+        select {
+        case <-worker.doneChan:
+          worker.exitChan<-1
+          break
+        default:
+          loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
+        }
+      }
+    }()
   }
 
   // dispatch goroutine to display stats
   go func() {
     for {
-      // display system stats, waiting each time for the next round
-      // of server writes
-      time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
-      displayStats(worker.WorkerAttackers)
+      select {
+      case <-worker.doneChan:
+        worker.exitChan<-1
+        break
+      default:
+        // display system stats, waiting each time for the next round
+        // of server writes
+        time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
+        displayStats(worker.WorkerAttackers)
+      }
     }
   }()
-  fmt.Println("blocked on doneChan")
 
-  // block Attack() until client has called Terminate()
-  <-worker.doneChan
+  fmt.Println("blocked on doneChan")
+  for i := 0; i < len(worker.WorkerAttackers) + 1; i++ {
+    <-worker.exitChan
+  }
+
   return nil
 }
 
@@ -70,7 +89,7 @@ func (worker *Worker) Attack(req int, res *int) error {
 // to call Terminate() to unblock Attack()
 func (worker *Worker) Terminate(req int, res *int) error {
   *res = 0
-  worker.doneChan<-1
+  close(worker.doneChan)
   return nil
 }
 
