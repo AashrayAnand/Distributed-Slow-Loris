@@ -3,7 +3,7 @@ package main
 import (
   "flag"
   "net/rpc"
-  "DistributedSlowLoris/shared"
+  "Distributed-Slow-Loris/shared"
   "fmt"
 )
 
