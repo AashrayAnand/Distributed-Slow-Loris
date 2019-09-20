@@ -27,11 +27,13 @@ type Worker struct {
 // set headers for worker as specified by broadcaster, always return nil error
 func (worker *Worker) SetHeaders(req *shared.Headers, res *int) error {
   worker.WorkerHeaders = req
+  fmt.Println("HEADERS SET")
   return nil
 }
 
 func (worker *Worker) SetState(req *shared.State, res *int) error {
   worker.WorkerState = req
+  fmt.Println("STATE SET")
   return nil
 }
 
@@ -104,8 +106,6 @@ func main() {
 
   // accept RPC to net listener for specified host Port
   rpc.Accept(worker.listener)
-
-
 }
 
 // displays stats about the slow loris
