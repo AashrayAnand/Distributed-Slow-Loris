@@ -47,21 +47,18 @@ func (worker *Worker) Attack(req int, res *int) error {
   // create a swarm of attackers, to execute slow loris attacks
   worker.WorkerAttackers = createSwarm(worker.WorkerState.NumAttackers, worker.WorkerState.Endpoint)
 
-  // dispatch goroutines to initiate attacks with each attacker in swarm
-  go func() {
-    for _, attacker := range worker.WorkerAttackers {
-      go worker.loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
-    }
+  for _, attacker := range worker.WorkerAttackers {
+    go worker.loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
+  }
 
     // display system stats, waiting each time for the next round
     // of server writes
-    for worker.Working == 1 {
-          time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
-          displayStats(worker.WorkerAttackers)
-    }
-  }()
+  for worker.Working == 1 {
+        time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
+        displayStats(worker.WorkerAttackers)
+  }
+
   <-worker.doneChan
-  fmt.Println("unblocked")
   return nil
 }
 
@@ -69,7 +66,6 @@ func (worker *Worker) Attack(req int, res *int) error {
 // asynchronously execute Attack() to initiate attack, and later on be able
 // to call Terminate() to unblock Attack()
 func (worker *Worker) Terminate(req int, res *int) error {
-  fmt.Println("TERMINATING")
   worker.Working = 0
   worker.doneChan<-1
   *res = 0
