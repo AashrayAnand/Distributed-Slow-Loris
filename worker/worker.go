@@ -40,6 +40,7 @@ func (worker *Worker) SetState(req *shared.State, res *int) error {
 }
 
 func (worker *Worker) Attack(req int, res *int) error {
+  worker.Working = 1
   // display slow loris attack information
   announceAttack(worker.WorkerState)
 
