@@ -174,6 +174,7 @@ func (worker *Worker) loris(attacker *shared.Attacker, delay int, base []byte, h
   }
   // continuously write to server to prolong request
   for worker.Working == 1 {
+    fmt.Println("worker.Working", worker.Working)
     time.Sleep(time.Duration(delay) * time.Second)
     if err := writeEndpoint(attacker.Conn, header); err != nil {
       attacker.Errors += 1
