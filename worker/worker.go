@@ -5,7 +5,7 @@ import (
   "net"
   "net/rpc"
   "time"
-  "Distributed-Slow-Loris/shared"
+  "github.com/AashrayAnand/Distributed-Slow-Loris/shared"
   "strconv"
   "log"
 )

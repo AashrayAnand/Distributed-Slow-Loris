@@ -3,7 +3,7 @@ package main
 import (
   "flag"
   "net/rpc"
-  "Distributed-Slow-Loris/shared"
+  "github.com/AashrayAnand/Distributed-Slow-Loris/shared"
   "fmt"
   "os"
   "os/signal"
