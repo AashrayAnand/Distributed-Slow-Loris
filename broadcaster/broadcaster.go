@@ -122,7 +122,7 @@ func main() {
     for _, conn := range broadcaster.clients {
       var req, res int
       // terminate slow loris attacks
-      for i := 0; i < NUM_TERM_ATTEMPTS {
+      for i := 0; i < NUM_TERM_ATTEMPTS; i++ {
         if err := conn.Call(TERM, req, &res); err == nil {
           fmt.Println("attempt #", i, "successfully terminated connection")
           break
