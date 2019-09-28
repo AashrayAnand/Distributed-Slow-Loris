@@ -37,10 +37,7 @@ func main() {
   flag.Parse()
   // set delay to be at least 5 seconds
   if *delay < 5 {
-    fmt.Println("asd")
     *delay = 5
-  } else {
-    fmt.Println("bce")
   }
 
 

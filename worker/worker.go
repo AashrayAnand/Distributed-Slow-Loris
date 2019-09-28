@@ -53,12 +53,14 @@ func (worker *Worker) Attack(req int, res *int) error {
 
     // display system stats, waiting each time for the next round
     // of server writes
-  for worker.Working == 1 {
+  go func() {
+    for worker.Working == 1 {
         time.Sleep(time.Duration(worker.WorkerState.Delay) * time.Second)
         displayStats(worker.WorkerAttackers)
-  }
+      }
+  }()
 
-  <-worker.doneChan
+  //<-worker.doneChan
   return nil
 }
 
