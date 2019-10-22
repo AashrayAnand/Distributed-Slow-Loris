@@ -12,10 +12,6 @@ Version 0.1 follows a single worker architecture, where attacks are manually exe
 
 Version 0.2 builds on v0.1, upgrading to a single-broadcaster, single-worker architecture. Using this design, attacks are requested from my local machine, which utilizes remote procedure calls to forward the work to an EC2 worker node. The worker node then manages the attack.
 
-### [version 0.3](TODO ADD LINK TO V0.3):
+### [version 0.3](present):
 
 Version 0.3 continues to build off of previous iterations of the loris attacker, and utilizes a single-broadcaster, N-worker architecture. The broadcaster is an HTTP server, which serves attack requests, forwarding these requests to a specified number of worker nodes, which each execute attacks on the same target. The broadcaster node also serves termination requests, which are forwarded to worker nodes, which promptly terminate their ongoing attacks.
-
-[version 1.0](TODO ADD LINK TO V1.0):
-
-Version 1.0 is the final (for now) version of this slow loris attacker. It is a comprehensive system, which consists of the previously implemented single-broadcaster, N-worker architecture, but now also includes a well-defined client interface for users attempting to request an attack to be served.
